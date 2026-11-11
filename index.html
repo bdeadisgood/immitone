@@ -5683,7 +5683,9 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
     let activeSpeechContext = null;
     let speechMaxTimer = null;
     let speechSilenceTimer = null;
-    let speechStartWatchdog = null;
+    let activeFinishCallback = null;
+    let activeHasHeardText = null;
+    let speechSessionId = 0;
 
     function getSpeakPracticePool() {
         const sentencePool = sentencesData.map(s => ({
@@ -5704,8 +5706,8 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
     }
 
     function nextSpeakGame() {
-        // 1. 徹底關閉上一題的語音辨識與任何正在播放的示範語音
-        stopActiveSpeechRecognition();
+        // 1. 溫和停止上一題的錄音與任何示範語音（絕不強行 abort 破壞音訊通道）
+        stopActiveSpeechRecognition(true);
         chineseSpeechRequestId++;
         clearTimeout(chineseSpeechTimer);
         clearTimeout(chineseSpeechWatchdog);
@@ -5713,7 +5715,7 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
             try { window.speechSynthesis.cancel(); } catch (e) {}
         }
 
-        // 2. 抽下一題並重置評分結果區塊
+        // 2. 抽下一題並重置評分顯示
         const pool = getSpeakPracticePool();
         if (pool.length === 0) return;
         const candidates = pool.filter(item => !currentSpeakItem || item.zh !== currentSpeakItem.zh);
@@ -5723,7 +5725,6 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
         const resBox = document.getElementById('speak-game-result');
         if (resBox) resBox.classList.add('hidden');
         renderSpeakGameCard();
-        // 注意：換題時不自動播放 TTS 示範音，避免手機與電腦瀏覽器因 TTS 佔用音訊通道，導致第 2 題按麥克風時卡在「Mendengarkan...」
     }
 
     function renderSpeakGameCard() {
@@ -5739,7 +5740,7 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
     }
 
     function speakCurrentPracticeTarget() {
-        if (isSpeechListening) stopActiveSpeechRecognition();
+        if (isSpeechListening) stopActiveSpeechRecognition(true);
         if (currentSpeakItem) speakChinese(currentSpeakItem.zh);
     }
 
@@ -5795,7 +5796,6 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
         return key;
     }
 
-    // 逐字比對: ok = 字相同, near = 字不同但拼音(不計聲調)相同, miss = 沒唸到或唸錯, pun = 標點
     function alignSpeechChars(targetZh, spokenTranscript) {
         const isHan = ch => /[\u3400-\u9fff]/.test(ch);
         const isScored = ch => /[\u3400-\u9fffA-Za-z0-9]/.test(ch);
@@ -5836,11 +5836,13 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
         return { transcript: spokenTranscript, stars, marks, level, percent: Math.round(speechSimilarity(targetZh, spokenTranscript) * 100) };
     }
 
-    function stopActiveSpeechRecognition() {
+    // 預設使用 stop() 溫和收尾，絕不在收到辨識結果後呼叫 abort()，避免瀏覽器音訊管線死鎖導致下一題卡在 Mendengarkan...
+    function stopActiveSpeechRecognition(useStop = true) {
         isSpeechListening = false;
+        activeFinishCallback = null;
+        activeHasHeardText = null;
         clearTimeout(speechMaxTimer);
         clearTimeout(speechSilenceTimer);
-        clearTimeout(speechStartWatchdog);
         const finished = activeRecognition;
         activeRecognition = null;
         if (finished) {
@@ -5850,7 +5852,10 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
             finished.onerror = null;
             finished.onend = null;
             finished.onspeechend = null;
-            try { finished.abort(); } catch (e) {}
+            try {
+                if (useStop) finished.stop();
+                else finished.abort();
+            } catch (e) {}
         }
         const gameMicBtn = document.getElementById('speak-game-mic-btn');
         if (gameMicBtn) gameMicBtn.classList.remove('mic-listening');
@@ -5918,7 +5923,7 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
             network: 'Pengenalan suara perlu internet. Periksa koneksi lalu coba lagi.',
             lang: 'Perangkat tidak mendukung pengenalan suara Mandarin (zh-TW).',
             generic: 'Pengenalan suara gagal. Silakan coba lagi.',
-            stuck: 'Layanan suara tidak merespons. Ketuk mikrofon sekali lagi untuk mulai bicara.'
+            stuck: 'Tidak terdengar suara. Ketuk mikrofon sekali lagi lalu langsung bicara.'
         },
         vi: {
             insecure: 'Micro chỉ dùng được qua HTTPS. Hãy mở ứng dụng bằng địa chỉ https:// (không mở trực tiếp tệp).',
@@ -5929,7 +5934,7 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
             network: 'Nhận diện giọng nói cần có mạng. Hãy kiểm tra kết nối rồi thử lại.',
             lang: 'Thiết bị không hỗ trợ nhận diện tiếng Trung (zh-TW).',
             generic: 'Nhận diện giọng nói thất bại. Vui lòng thử lại.',
-            stuck: 'Dịch vụ giọng nói chưa phản hồi. Hãy nhấn micro một lần nữa để bắt đầu nói.'
+            stuck: 'Chưa nghe thấy giọng nói. Hãy nhấn micro lần nữa rồi nói ngay.'
         },
         th: {
             insecure: 'ไมโครโฟนใช้ได้เฉพาะผ่าน HTTPS โปรดเปิดแอปจากที่อยู่ https:// (ไม่ใช่เปิดไฟล์โดยตรง)',
@@ -5940,7 +5945,7 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
             network: 'การรู้จำเสียงพูดต้องใช้อินเทอร์เน็ต โปรดตรวจสอบการเชื่อมต่อแล้วลองใหม่',
             lang: 'อุปกรณ์ไม่รองรับการรู้จำเสียงภาษาจีน (zh-TW)',
             generic: 'การรู้จำเสียงพูดล้มเหลว โปรดลองใหม่อีกครั้ง',
-            stuck: 'บริการเสียงยังไม่ตอบสนอง โปรดแตะไมโครโฟนอีกครั้งเพื่อเริ่มพูด'
+            stuck: 'ยังไม่ได้ยินเสียงพูด แตะไมโครโฟนอีกครั้งแล้วพูดทันที'
         },
         tl: {
             insecure: 'Gumagana lang ang mikropono sa HTTPS. Buksan ang app mula sa https:// address (hindi direktang file).',
@@ -5951,7 +5956,7 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
             network: 'Kailangan ng internet ang speech recognition. Suriin ang koneksyon at subukan ulit.',
             lang: 'Hindi suportado ng device ang Chinese (zh-TW) speech recognition.',
             generic: 'Nabigo ang speech recognition. Subukan ulit.',
-            stuck: 'Hindi pa tumutugon ang voice service. Pindutin muli ang mikropono para magsimulang magsalita.'
+            stuck: 'Walang narinig na boses. Pindutin muli ang mikropono at magsalita agad.'
         }
     };
 
@@ -5988,9 +5993,13 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const t = extraText();
 
-        // 若正在錄音中再次點擊麥克風，且已經有辨識到文字則直接結算，否則停止錄音
+        // 若正在錄音中再次點擊麥克風：如果已經有聽到字，立刻強制結算評分！如果還沒聽到字，則停止錄音。
         if (isSpeechListening) {
-            stopActiveSpeechRecognition();
+            if (typeof activeHasHeardText === 'function' && activeHasHeardText() && typeof activeFinishCallback === 'function') {
+                activeFinishCallback([]);
+                return;
+            }
+            stopActiveSpeechRecognition(true);
             if (context === 'game') {
                 document.getElementById('speak-game-status').textContent = t.speakTapToStart;
             }
@@ -6010,8 +6019,7 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
             : (currentSpeakItem ? currentSpeakItem.zh : '');
         if (!targetText) return;
 
-        // 同步清除任何殘留的示範語音與上一個辨識實例（絕對不可用 setTimeout 延遲 start，否則喪失使用者點擊權限並卡在 Mendengarkan...）
-        stopActiveSpeechRecognition();
+        // 停止任何示範發音
         chineseSpeechRequestId++;
         clearTimeout(chineseSpeechTimer);
         clearTimeout(chineseSpeechWatchdog);
@@ -6019,11 +6027,12 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
             try { window.speechSynthesis.cancel(); } catch (e) {}
         }
 
+        const sessionId = ++speechSessionId;
         const recognition = new SpeechRecognition();
         activeRecognition = recognition;
         activeSpeechContext = context;
         isSpeechListening = true;
-        const isStale = () => recognition !== activeRecognition;
+        const isStale = () => sessionId !== speechSessionId || recognition !== activeRecognition;
 
         recognition.lang = 'zh-TW';
         recognition.continuous = false;
@@ -6059,7 +6068,6 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
             handledResult = true;
             clearTimeout(speechSilenceTimer);
             clearTimeout(speechMaxTimer);
-            clearTimeout(speechStartWatchdog);
             const allCandidates = [...(candidates || []), ...collectedCandidates, lastHeard].filter(Boolean);
             let best = null;
             allCandidates.forEach(candidate => {
@@ -6068,9 +6076,13 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
                     best = analysis;
                 }
             });
-            stopActiveSpeechRecognition();
+            // 使用 useStop=true 溫和結束，絕不呼叫 abort()，保護下一題的音訊通道
+            stopActiveSpeechRecognition(true);
             renderSpeechRatingOutput(context, best || analyzeSpeech(targetText, ''));
         };
+
+        activeFinishCallback = finish;
+        activeHasHeardText = () => Boolean(lastHeard || collectedCandidates.length > 0);
 
         recognition.onresult = event => {
             if (isStale() || !event.results || !event.results.length) return;
@@ -6100,13 +6112,13 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
             if (hasFinal) {
                 finish([fullTranscript, ...currentAlts]);
             } else if (lastHeard) {
-                // 若使用者停止說話滿 1.2 秒仍未收到 isFinal，自動以目前已辨識到的字句結算評分
+                // 只要有聽到字，停頓 0.9 秒直接自動出分，不傻等瀏覽器送出 isFinal
                 clearTimeout(speechSilenceTimer);
                 speechSilenceTimer = setTimeout(() => {
                     if (!isStale() && !handledResult && lastHeard) {
                         finish([lastHeard]);
                     }
-                }, 1200);
+                }, 900);
             }
         };
 
@@ -6121,7 +6133,7 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
                         try { recognition.stop(); } catch (e) {}
                     }
                 }
-            }, 400);
+            }, 300);
         };
 
         recognition.onerror = event => {
@@ -6133,7 +6145,7 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
                 finish([lastHeard]);
                 return;
             }
-            stopActiveSpeechRecognition();
+            stopActiveSpeechRecognition(true);
             if (code === 'aborted') return;
             showSpeechProblem(context, speechMsg(speechErrorKey(code)));
         };
@@ -6144,7 +6156,7 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
                 finish([lastHeard]);
                 return;
             }
-            stopActiveSpeechRecognition();
+            stopActiveSpeechRecognition(true);
             showSpeechProblem(context, t.speakNoMatch);
         };
 
@@ -6156,12 +6168,12 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
                     finish([lastHeard]);
                     return;
                 }
-                stopActiveSpeechRecognition();
+                stopActiveSpeechRecognition(true);
                 showSpeechProblem(context, speechMsg('stuck'));
-            }, 8000);
+            }, 6500);
         } catch (err) {
             console.warn('SpeechRecognition start failed:', err);
-            stopActiveSpeechRecognition();
+            stopActiveSpeechRecognition(false);
             showSpeechProblem(context, speechMsg('generic'));
         }
     }
