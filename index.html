@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>移語通 MAX | 旗艦完整版</title>
-    <meta name="theme-color" content="#0d9488">
+    <meta name="theme-color" content="#EFF3F8">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <link rel="manifest" href="./manifest.webmanifest">
@@ -18,7 +18,7 @@
     </script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap');
         body { font-family: 'Noto Sans TC', sans-serif; user-select: none; }
         .app-shell { max-width: 440px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; position: relative; overflow-x: hidden; }
         
@@ -39,8 +39,8 @@
         .flip-card-inner.flipped { transform: rotateY(180deg); }
         .flip-card-front, .flip-card-back { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
         .flip-card-back { transform: rotateY(180deg); }
-        @keyframes mic-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.5); } 50% { box-shadow: 0 0 0 14px rgba(225, 29, 72, 0); } }
-        .mic-listening { animation: mic-pulse 1.4s infinite; background-color: #e11d48 !important; color: #ffffff !important; border-color: #e11d48 !important; }
+        
+        
         .sp-ok { color: #059669; }
         .sp-near { color: #d97706; border-bottom: 2px dotted #d97706; }
         .sp-miss { color: #e11d48; border-bottom: 2px solid #e11d48; }
@@ -53,6 +53,92 @@
         #modal-speech-box .sp-ok, #modal-speech-box .sp-v-good { color: #6ee7b7; }
         #modal-speech-box .sp-near, #modal-speech-box .sp-v-close { color: #fcd34d; border-color: #fcd34d; }
         #modal-speech-box .sp-miss, #modal-speech-box .sp-v-retry { color: #fda4af; border-color: #fda4af; }
+    </style>
+    <style id="aero-theme">
+        /* ===== 移語通 MAX · Aero Cerulean 外觀層(僅視覺,不含任何功能邏輯) ===== */
+        :root{
+            --canvas:#EFF3F8; --canvas-2:#E3EBF4; --surface:#FBFDFF; --glass:rgba(244,247,250,.72); --glass-hi:rgba(255,255,255,.74);
+            --ink:#1A222D; --ink-2:#566679; --ink-3:#8795A6;
+            --brand:#4796DC; --brand-ink:#2B6AAE; --tint:#E4EFFB; --tint-line:#CFE2F6; --well:#E1E9F2;
+            --peach:#EE9B6A; --peach-tint:#FFF0E6; --peach-ink:#A04E26; --peach-line:#F6D5BE; --lime:#D4F85A;
+            --edge:rgba(255,255,255,.85); --hair:rgba(26,34,45,.07); --line:rgba(26,34,45,.13);
+            --glow-sm:0 8px 22px -10px rgba(30,144,255,.2); --glow:0 16px 32px -8px rgba(30,144,255,.12),0 2px 6px rgba(47,111,179,.05);
+            --solid:linear-gradient(165deg,#4A97DA 0%,#3279BD 100%); --spring:cubic-bezier(.34,1.56,.64,1);
+        }
+        @media (prefers-color-scheme:dark){:root{
+            --canvas:#0E151E; --canvas-2:#0A1017; --surface:#162231; --glass:rgba(16,24,34,.74); --glass-hi:rgba(22,34,49,.8);
+            --ink:#E8EEF5; --ink-2:#A3B2C3; --ink-3:#74869A; --brand:#5AA6E6; --brand-ink:#93C6F3; --tint:rgba(90,166,230,.14); --tint-line:rgba(90,166,230,.28); --well:rgba(255,255,255,.06);
+            --peach-tint:rgba(238,155,106,.13); --peach-ink:#FFC8A6; --peach-line:rgba(238,155,106,.3);
+            --edge:rgba(255,255,255,.08); --hair:rgba(255,255,255,.07); --line:rgba(255,255,255,.14);
+            --glow-sm:0 8px 22px -10px rgba(0,0,0,.55); --glow:0 16px 32px -8px rgba(0,0,0,.5);
+        }}
+        body[class]{background:radial-gradient(90% 40% at 50% 0,rgba(71,150,220,.14),transparent 70%),var(--canvas-2);color:var(--ink);line-height:1.55;font-family:'Plus Jakarta Sans','Noto Sans TC','Noto Sans Thai',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+        body .app-shell{background:radial-gradient(120% 34% at 50% 0,rgba(120,185,240,.22),transparent 72%),var(--canvas);box-shadow:0 0 90px -30px rgba(71,150,220,.35)}
+        body .app-shell main.flex-1,body .app-shell #view-info{background:transparent}
+        .app-shell .font-black{font-weight:700}.app-shell .font-bold,.app-shell .lang-chip.active{font-weight:600}
+        .app-shell .text-xs{line-height:1.5}.app-shell .text-sm{line-height:1.55}
+
+        /* 表面:霧面卡片 + 同色系擴散光暈 */
+        .app-shell .bg-white{background:var(--surface)}
+        .app-shell .bg-gray-50{background:var(--canvas)}
+        .app-shell :is(.bg-gray-100,.bg-gray-200){background:var(--well)}
+        .app-shell :is(.border-gray-100,.border-gray-200,.border-gray-300){border-color:var(--edge)}
+        .app-shell .divide-y>:not([hidden])~:not([hidden]){border-color:var(--hair)}
+        .app-shell .shadow-sm{box-shadow:var(--glow-sm)}
+        .app-shell :is(.shadow,.shadow-md,.shadow-lg,.shadow-xl,.shadow-2xl){box-shadow:var(--glow)}
+        .app-shell .rounded-md{border-radius:12px}.app-shell .rounded-lg{border-radius:16px}.app-shell .rounded-xl{border-radius:22px}
+        .app-shell .rounded-2xl{border-radius:26px}.app-shell .rounded-3xl{border-radius:32px}
+        .app-shell :is([class~="text-gray-900"],[class~="text-gray-800"],[class~="text-gray-700"],[class~="text-slate-900"],[class~="text-slate-800"]){color:var(--ink)}
+        .app-shell :is([class~="text-gray-600"],[class~="text-gray-500"]){color:var(--ink-2)}
+        .app-shell [class~="text-gray-400"]{color:var(--ink-3)}
+
+        /* 天藍色階:取代原本的 teal / blue / purple / pink */
+        .app-shell :is([class~="bg-teal-50"],[class~="bg-teal-100"],[class~="bg-blue-50"],[class~="bg-blue-100"],[class~="bg-purple-50"],[class~="bg-purple-100"],[class~="bg-pink-50"],[class~="bg-pink-100"]){background:var(--tint)}
+        .app-shell :is([class*="text-teal-"],[class*="text-blue-"],[class*="text-purple-"],[class*="text-pink-"]){color:var(--brand-ink)}
+        .app-shell :is([class*="border-teal-"],[class*="border-blue-"],[class*="border-purple-"],[class*="border-pink-"]){border-color:var(--tint-line)}
+        .app-shell :is([class*="from-teal-"],[class*="from-pink-"]){--tw-gradient-from:#4A97DA}
+        .app-shell :is([class*="to-teal-"],[class*="to-purple-"]){--tw-gradient-to:#2B5F9E}
+        /* 暖杏桃:取代琥珀黃(收藏、提示) */
+        .app-shell :is([class~="bg-amber-50"],[class~="bg-amber-100"],[class~="bg-amber-200"]){background:var(--peach-tint)}
+        .app-shell [class*="text-amber-"]{color:var(--peach-ink)}.app-shell :is([class*="text-amber-5"],[class*="text-amber-4"]){color:var(--peach)}
+        .app-shell [class*="border-amber-"]{border-color:var(--peach-line)}
+        /* 主按鈕:樹脂質感實心藍 */
+        .app-shell :is([class~="bg-teal-600"],[class~="bg-teal-700"],[class~="bg-blue-600"],[class~="bg-purple-600"],[class~="bg-pink-500"],[class~="bg-pink-600"],[class~="bg-amber-500"],[id$="-next-btn"],.dict-pill.active,.sent-pill.active){background:var(--solid);color:#fff;border-color:rgba(255,255,255,.28);box-shadow:0 12px 24px -8px rgba(47,111,179,.5),inset 0 1px 0 rgba(255,255,255,.35)}
+        .app-shell #ai-menu .rounded-full{background:var(--tint);color:var(--brand-ink);box-shadow:inset 0 1px 0 rgba(255,255,255,.7)}
+        .app-shell :is(#fill-lang,#build-lang,#speak-target-lang){background:var(--tint);border-color:var(--tint-line);color:var(--brand-ink)}
+        .app-shell #game-scenario :is([class*="bg-rose-"],[class*="text-rose-"]){color:var(--brand-ink)}
+        .app-shell #game-scenario [class*="bg-rose-100"]{background:var(--tint)}
+        .app-shell #game-scenario button[class*="bg-rose-"]{background:var(--solid);color:#fff}
+
+        /* 磨砂玻璃:頂欄、子分類列、底部導覽 */
+        .app-shell .sticky{background:var(--glass);-webkit-backdrop-filter:blur(20px) saturate(1.5);backdrop-filter:blur(20px) saturate(1.5);border-color:var(--edge);box-shadow:0 1px 0 var(--hair)}
+        .app-shell nav.fixed{background:var(--glass-hi);-webkit-backdrop-filter:blur(24px) saturate(1.6);backdrop-filter:blur(24px) saturate(1.6);border:1px solid var(--edge);border-bottom:0;border-radius:28px 28px 0 0;box-shadow:0 -14px 40px -14px rgba(47,111,179,.28)}
+        .app-shell .nav-item{border-radius:22px;transition:transform .5s var(--spring),background-color .3s,color .3s}
+        .app-shell .nav-item.active{color:var(--brand-ink);background:var(--tint);font-weight:700}
+        .app-shell header .text-xs.bg-teal-600{background:var(--lime);color:var(--ink);box-shadow:0 0 0 3px rgba(212,248,90,.28)}
+        #favorites-modal section{background:var(--canvas);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);border:1px solid var(--edge);border-bottom:0;box-shadow:0 -20px 60px -20px rgba(47,111,179,.4)}
+        .app-shell :is(.bg-black\/60,.bg-black\/70,.bg-black\/80){background:rgba(20,32,48,.42);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+        #big-card-modal{background:rgba(12,20,30,.9)!important;-webkit-backdrop-filter:blur(26px);backdrop-filter:blur(26px)}
+        #big-card-modal [class*="text-teal-"]{color:#BFDFFB}.app-shell #big-card-modal [class~="bg-teal-600"]{box-shadow:0 14px 30px -10px rgba(71,150,220,.6)}
+        #tinder-result-modal .bg-white{background:#fff}#tinder-result-modal [class*="text-pink-"]{color:#2B6AAE}
+
+        /* 語言切換:膠囊托盤 */
+        .app-shell header .grid-cols-4{padding:5px;gap:4px;border-radius:999px;background:var(--well);box-shadow:inset 0 2px 6px rgba(26,34,45,.07)}
+        .app-shell header .lang-chip{border:0;border-radius:999px;background:transparent;opacity:.8;filter:none;transform:scale(.96);box-shadow:none;transition:transform .5s var(--spring),background .3s,opacity .3s}
+        .app-shell header .lang-chip.active{opacity:1;transform:scale(1);color:#fff;background:var(--solid);box-shadow:0 10px 20px -8px rgba(47,111,179,.55),inset 0 1px 0 rgba(255,255,255,.4)}
+        .app-shell #dict-list{margin:0 16px 16px;border-radius:28px;background:var(--surface);border:1px solid var(--edge);box-shadow:var(--glow);overflow:hidden}
+        .app-shell input{border-radius:999px;border-color:var(--line);background:var(--surface)}
+        .app-shell input:focus{border-color:var(--brand);box-shadow:0 0 0 4px rgba(71,150,220,.18)}
+
+        /* 收音狀態:冷酸綠指示光 */
+        @keyframes mic-pulse{0%,100%{box-shadow:0 0 0 0 rgba(212,248,90,.6)}50%{box-shadow:0 0 0 16px rgba(212,248,90,0)}}
+        .mic-listening{animation:mic-pulse 1.4s infinite;background:#D4F85A!important;color:#1A222D!important;border-color:#BFE443!important}
+        .app-shell #speak-game-mic-btn{background:var(--tint);border-color:var(--tint-line);color:var(--brand-ink)}
+        .app-shell #modal-mic-btn{background:var(--lime);color:var(--ink);box-shadow:0 12px 26px -10px rgba(212,248,90,.55)}
+
+        /* 彈簧微動效 */
+        .app-shell button{transition:transform .5s var(--spring),box-shadow .3s,background-color .3s,color .3s,border-color .3s}
+        @media (prefers-reduced-motion:reduce){.app-shell *{transition-duration:.01ms!important;animation-duration:.01ms!important}}
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-slate-900 text-slate-900 dark:text-gray-100">
@@ -5686,6 +5772,9 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
     let activeFinishCallback = null;
     let activeHasHeardText = null;
     let speechSessionId = 0;
+    let speechStopToken = null;      // 上一個辨識是否「真的結束」的旗標
+    let speechAutoRetry = 0;         // 瀏覽器自己中斷時的自動重試次數
+    let speechStartWaiting = false;  // 正在等上一個辨識/示範語音釋放麥克風
 
     function getSpeakPracticePool() {
         const sentencePool = sentencesData.map(s => ({
@@ -5849,9 +5938,14 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
             finished.onstart = null;
             finished.onaudiostart = null;
             finished.onresult = null;
-            finished.onerror = null;
-            finished.onend = null;
             finished.onspeechend = null;
+            // 不能直接清空 onend：要知道上一個辨識真的結束了，下一題才能安全開始
+            const token = { done: false, rec: finished };
+            speechStopToken = token;
+            const markDone = () => { token.done = true; };
+            finished.onerror = markDone;
+            finished.onend = markDone;
+            setTimeout(markDone, 1500);
             try {
                 if (useStop) finished.stop();
                 else finished.abort();
@@ -5989,7 +6083,7 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
         }
     }
 
-    function triggerSpeechAssessment(context) {
+    function triggerSpeechAssessment(context, resumed) {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const t = extraText();
 
@@ -6005,6 +6099,8 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
             }
             return;
         }
+        if (!resumed) speechAutoRetry = 0;
+        if (speechStartWaiting) return;
         if (window.isSecureContext === false) {
             showSpeechProblem(context, speechMsg('insecure'));
             return;
@@ -6018,6 +6114,32 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
             ? currentModalZh
             : (currentSpeakItem ? currentSpeakItem.zh : '');
         if (!targetText) return;
+
+        // 下一題常見問題：上一輪辨識（或示範語音）還沒釋放麥克風，新的辨識會被瀏覽器直接 aborted、
+        // 畫面就卡在「Mendengarkan…」。所以先等它真正結束（最多 1.5 秒）再開始。
+        const synthRef = ('speechSynthesis' in window) ? window.speechSynthesis : null;
+        const synthBusy = !resumed && !!(synthRef && (synthRef.speaking || synthRef.pending));
+        const prevBusy = !!(speechStopToken && !speechStopToken.done);
+        if (prevBusy || synthBusy) {
+            speechStartWaiting = true;
+            chineseSpeechRequestId++;
+            clearTimeout(chineseSpeechTimer);
+            clearTimeout(chineseSpeechWatchdog);
+            if (synthRef) { try { synthRef.cancel(); } catch (e) {} }
+            const waitStart = Date.now();
+            const waitReady = () => {
+                const stillStopping = speechStopToken && !speechStopToken.done;
+                if (stillStopping && Date.now() - waitStart < 1500) { setTimeout(waitReady, 60); return; }
+                if (stillStopping) {
+                    try { speechStopToken.rec.abort(); } catch (e) {}
+                    speechStopToken.done = true;
+                }
+                speechStartWaiting = false;
+                triggerSpeechAssessment(context, true);
+            };
+            setTimeout(waitReady, synthBusy ? 300 : 60);
+            return;
+        }
 
         // 停止任何示範發音
         chineseSpeechRequestId++;
@@ -6146,7 +6268,15 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
                 return;
             }
             stopActiveSpeechRecognition(true);
-            if (code === 'aborted') return;
+            if (code === 'aborted') {
+                if (speechAutoRetry < 2) {
+                    speechAutoRetry++;
+                    setTimeout(() => { if (!isSpeechListening && !speechStartWaiting) triggerSpeechAssessment(context, true); }, 300);
+                    return;
+                }
+                showSpeechProblem(context, speechMsg('generic'));
+                return;
+            }
             showSpeechProblem(context, speechMsg(speechErrorKey(code)));
         };
 
@@ -6157,9 +6287,32 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
                 return;
             }
             stopActiveSpeechRecognition(true);
+            if (Date.now() - startedAt < 800 && speechAutoRetry < 2) {
+                speechAutoRetry++;
+                setTimeout(() => { if (!isSpeechListening && !speechStartWaiting) triggerSpeechAssessment(context, true); }, 300);
+                return;
+            }
             showSpeechProblem(context, t.speakNoMatch);
         };
 
+        const startedAt = Date.now();
+        // 有些瀏覽器第二次啟動時引擎會「靜默卡死」（沒有任何事件）。2.5 秒內完全沒反應就換一個新的辨識器重試。
+        let gotStart = false;
+        const markStart = () => { gotStart = true; };
+        recognition.onstart = markStart;
+        recognition.onaudiostart = markStart;
+        recognition.onsoundstart = markStart;
+        recognition.onspeechstart = markStart;
+        setTimeout(() => {
+            if (isStale() || handledResult || gotStart || lastHeard) return;
+            stopActiveSpeechRecognition(true);
+            if (speechAutoRetry < 2) {
+                speechAutoRetry++;
+                triggerSpeechAssessment(context, true);
+                return;
+            }
+            showSpeechProblem(context, speechMsg('stuck'));
+        }, 2500);
         try {
             recognition.start();
             speechMaxTimer = setTimeout(() => {
