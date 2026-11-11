@@ -5682,9 +5682,7 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
     let isSpeechListening = false;
     let activeSpeechContext = null;
     let speechMaxTimer = null;
-    let speechSessionInFlight = null;   // 已啟動、但還沒收到 end 事件的辨識
-    const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    let speechStartToken = 0;           // 用來取消「等待中、尚未啟動」的辨識
+    let speechSilenceTimer = null;
 
     function getSpeakPracticePool() {
         const sentencePool = sentencesData.map(s => ({
@@ -5705,15 +5703,26 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
     }
 
     function nextSpeakGame() {
+        // 1. 徹底關閉上一題的語音辨識與任何正在播放的示範語音
         stopActiveSpeechRecognition();
+        chineseSpeechRequestId++;
+        clearTimeout(chineseSpeechTimer);
+        clearTimeout(chineseSpeechWatchdog);
+        if ('speechSynthesis' in window) {
+            try { window.speechSynthesis.cancel(); } catch (e) {}
+        }
+
+        // 2. 抽下一題並重置評分結果區塊
         const pool = getSpeakPracticePool();
         if (pool.length === 0) return;
         const candidates = pool.filter(item => !currentSpeakItem || item.zh !== currentSpeakItem.zh);
         currentSpeakItem = candidates[Math.floor(Math.random() * candidates.length)] || pool[0];
+
+        clearSpeechResultUi('game');
         const resBox = document.getElementById('speak-game-result');
         if (resBox) resBox.classList.add('hidden');
         renderSpeakGameCard();
-        if (!IS_IOS) speakCurrentPracticeTarget();   // iPhone:自動播放會讓下一次麥克風無反應,改由使用者按「示範發音」
+        // 不自動播放 TTS 示範音，避免搶佔麥克風導致下一題無法評分；使用者可隨時點「示範發音」
     }
 
     function renderSpeakGameCard() {
@@ -5729,6 +5738,7 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
     }
 
     function speakCurrentPracticeTarget() {
+        if (isSpeechListening) stopActiveSpeechRecognition();
         if (currentSpeakItem) speakChinese(currentSpeakItem.zh);
     }
 
@@ -5825,16 +5835,19 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
         return { transcript: spokenTranscript, stars, marks, level, percent: Math.round(speechSimilarity(targetZh, spokenTranscript) * 100) };
     }
 
-    // graceful=true:已拿到結果,用 stop() 讓辨識自然結束;其餘(取消、換題、關閉)用 abort()
-    function stopActiveSpeechRecognition(graceful) {
+    function stopActiveSpeechRecognition() {
         isSpeechListening = false;
-        speechStartToken++;
         clearTimeout(speechMaxTimer);
+        clearTimeout(speechSilenceTimer);
         const finished = activeRecognition;
         activeRecognition = null;
         if (finished) {
-            try { graceful === true ? finished.stop() : finished.abort(); } catch (e) {}
-            setTimeout(() => { if (speechSessionInFlight === finished) speechSessionInFlight = null; }, 1500);
+            // 先解除所有事件綁定，避免舊實例非同步觸發 onend / onerror 干擾新題目
+            finished.onresult = null;
+            finished.onerror = null;
+            finished.onend = null;
+            finished.onspeechend = null;
+            try { finished.abort(); } catch (e) {}
         }
         const gameMicBtn = document.getElementById('speak-game-mic-btn');
         if (gameMicBtn) gameMicBtn.classList.remove('mic-listening');
@@ -5892,7 +5905,6 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
         }
     }
 
-    // 語音辨識錯誤訊息(依介面語言顯示真正原因,而不是一律「聽不清楚」)
     const speechErrorI18n = {
         id: {
             insecure: 'Mikrofon hanya bisa dipakai lewat HTTPS. Buka aplikasi dari alamat https:// (bukan membuka file langsung).',
@@ -5903,8 +5915,7 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
             network: 'Pengenalan suara perlu internet. Periksa koneksi lalu coba lagi.',
             lang: 'Perangkat tidak mendukung pengenalan suara Mandarin (zh-TW).',
             generic: 'Pengenalan suara gagal. Silakan coba lagi.',
-            stuck: 'Layanan suara tidak merespons. Ketuk mikrofon lagi; jika tetap gagal, muat ulang halaman.',
-            waitTts: 'Suara contoh dihentikan. Ketuk mikrofon sekali lagi untuk mulai bicara.'
+            stuck: 'Layanan suara tidak merespons. Ketuk mikrofon lagi; jika tetap gagal, muat ulang halaman.'
         },
         vi: {
             insecure: 'Micro chỉ dùng được qua HTTPS. Hãy mở ứng dụng bằng địa chỉ https:// (không mở trực tiếp tệp).',
@@ -5915,8 +5926,7 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
             network: 'Nhận diện giọng nói cần có mạng. Hãy kiểm tra kết nối rồi thử lại.',
             lang: 'Thiết bị không hỗ trợ nhận diện tiếng Trung (zh-TW).',
             generic: 'Nhận diện giọng nói thất bại. Vui lòng thử lại.',
-            stuck: 'Dịch vụ giọng nói không phản hồi. Nhấn micro lại; nếu vẫn lỗi, hãy tải lại trang.',
-            waitTts: 'Đã dừng giọng mẫu. Nhấn micro thêm một lần để bắt đầu nói.'
+            stuck: 'Dịch vụ giọng nói không phản hồi. Nhấn micro lại; nếu vẫn lỗi, hãy tải lại trang.'
         },
         th: {
             insecure: 'ไมโครโฟนใช้ได้เฉพาะผ่าน HTTPS โปรดเปิดแอปจากที่อยู่ https:// (ไม่ใช่เปิดไฟล์โดยตรง)',
@@ -5927,8 +5937,7 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
             network: 'การรู้จำเสียงพูดต้องใช้อินเทอร์เน็ต โปรดตรวจสอบการเชื่อมต่อแล้วลองใหม่',
             lang: 'อุปกรณ์ไม่รองรับการรู้จำเสียงภาษาจีน (zh-TW)',
             generic: 'การรู้จำเสียงพูดล้มเหลว โปรดลองใหม่อีกครั้ง',
-            stuck: 'บริการเสียงไม่ตอบสนอง แตะไมโครโฟนอีกครั้ง หากยังไม่ได้ให้โหลดหน้าเว็บใหม่',
-            waitTts: 'หยุดเสียงตัวอย่างแล้ว แตะไมโครโฟนอีกครั้งเพื่อเริ่มพูด'
+            stuck: 'บริการเสียงไม่ตอบสนอง แตะไมโครโฟนอีกครั้ง หากยังไม่ได้ให้โหลดหน้าเว็บใหม่'
         },
         tl: {
             insecure: 'Gumagana lang ang mikropono sa HTTPS. Buksan ang app mula sa https:// address (hindi direktang file).',
@@ -5939,8 +5948,7 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
             network: 'Kailangan ng internet ang speech recognition. Suriin ang koneksyon at subukan ulit.',
             lang: 'Hindi suportado ng device ang Chinese (zh-TW) speech recognition.',
             generic: 'Nabigo ang speech recognition. Subukan ulit.',
-            stuck: 'Hindi tumutugon ang voice service. Pindutin ulit ang mikropono; kung hindi pa rin gumana, i-reload ang page.',
-            waitTts: 'Itinigil ang halimbawang tunog. Pindutin muli ang mikropono para magsimulang magsalita.'
+            stuck: 'Hindi tumutugon ang voice service. Pindutin ulit ang mikropono; kung hindi pa rin gumana, i-reload ang page.'
         }
     };
 
@@ -5973,11 +5981,16 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
         }
     }
 
-    function triggerSpeechAssessment(context, isRetry, waited) {
+    function triggerSpeechAssessment(context) {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const t = extraText();
+
+        // 若正在錄音中再次點擊麥克風，則停止錄音
         if (isSpeechListening) {
             stopActiveSpeechRecognition();
+            if (context === 'game') {
+                document.getElementById('speak-game-status').textContent = t.speakTapToStart;
+            }
             return;
         }
         if (window.isSecureContext === false) {
@@ -5994,35 +6007,24 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
             : (currentSpeakItem ? currentSpeakItem.zh : '');
         if (!targetText) return;
 
-        // 取消還沒開始播的示範發音;若示範發音或上一次辨識還沒完全結束,先等 0.35 秒讓麥克風釋放
+        // 同步清除任何殘留的示範語音與上一個辨識實例（絕對不可用 setTimeout 延遲 start，否則喪失使用者點擊權限）
+        stopActiveSpeechRecognition();
         chineseSpeechRequestId++;
         clearTimeout(chineseSpeechTimer);
         clearTimeout(chineseSpeechWatchdog);
-        const synth = 'speechSynthesis' in window ? window.speechSynthesis : null;
-        const needsWait = !!speechSessionInFlight || !!(synth && (synth.speaking || synth.pending));
-        if (IS_IOS && synth && (synth.speaking || synth.pending)) {
-            synth.cancel();
-            showSpeechProblem(context, speechMsg('waitTts'));
-            return;
-        }
-        if (synth) synth.cancel();
-        if (needsWait && !waited && !IS_IOS) {
-            const token = ++speechStartToken;
-            if (speechSessionInFlight) { try { speechSessionInFlight.abort(); } catch (e) {} }
-            setTimeout(() => { if (token === speechStartToken) triggerSpeechAssessment(context, isRetry, true); }, 350);
-            return;
+        if ('speechSynthesis' in window) {
+            try { window.speechSynthesis.cancel(); } catch (e) {}
         }
 
         const recognition = new SpeechRecognition();
         activeRecognition = recognition;
-        speechSessionInFlight = recognition;
         activeSpeechContext = context;
         isSpeechListening = true;
         const isStale = () => recognition !== activeRecognition;
 
         recognition.lang = 'zh-TW';
         recognition.continuous = false;
-        recognition.interimResults = true;   // 邊講邊顯示辨識到的字
+        recognition.interimResults = true;
         recognition.maxAlternatives = 3;
 
         const micBtn = document.getElementById(context === 'modal' ? 'modal-mic-btn' : 'speak-game-mic-btn');
@@ -6040,91 +6042,126 @@ law | 重出入境許可 | chóng chū rù jìng xǔ kě | Izin Masuk Kembali (R
         }
 
         let handledResult = false;
+        let collectedCandidates = [];
         let lastHeard = '';
-        let iosSettleTimer = null;
+
         const showLive = text => {
             const line = `${verdictText('live')}：${text}`;
             const el = document.getElementById(context === 'modal' ? 'modal-speech-transcript' : 'speak-game-status');
             if (el) el.textContent = line;
         };
-        // 取最佳候選並顯示結果;最終結果沒來時,改用最後一次即時辨識的文字
+
         const finish = candidates => {
             if (handledResult) return;
             handledResult = true;
-            clearTimeout(iosSettleTimer);
+            clearTimeout(speechSilenceTimer);
+            clearTimeout(speechMaxTimer);
+            const allCandidates = [...(candidates || []), ...collectedCandidates, lastHeard].filter(Boolean);
             let best = null;
-            candidates.filter(Boolean).forEach(candidate => {
+            allCandidates.forEach(candidate => {
                 const analysis = analyzeSpeech(targetText, candidate);
-                if (!best || analysis.stars > best.stars || (analysis.stars === best.stars && analysis.percent > best.percent)) best = analysis;
+                if (!best || analysis.stars > best.stars || (analysis.stars === best.stars && analysis.percent > best.percent)) {
+                    best = analysis;
+                }
             });
-            stopActiveSpeechRecognition(!IS_IOS);   // iPhone 用 abort() 確實釋放麥克風
+            stopActiveSpeechRecognition();
             renderSpeechRatingOutput(context, best || analyzeSpeech(targetText, ''));
         };
 
         recognition.onresult = event => {
             if (isStale() || !event.results || !event.results.length) return;
-            const last = event.results[event.results.length - 1];
-            const alternatives = Array.from(last, alt => alt.transcript);
-            if (last.isFinal !== false) {
-                finish(alternatives);
-            } else if (alternatives[0]) {
-                lastHeard = alternatives[0];
-                showLive(lastHeard);
-                // iPhone 常常不送出最終結果:停頓 1.2 秒就用最後辨識到的文字評分
-                if (IS_IOS) {
-                    clearTimeout(iosSettleTimer);
-                    iosSettleTimer = setTimeout(() => { if (!isStale()) finish([lastHeard]); }, 1200);
+            let fullTranscript = '';
+            let hasFinal = false;
+            const currentAlts = [];
+
+            for (let i = 0; i < event.results.length; i++) {
+                const res = event.results[i];
+                if (res[0] && res[0].transcript) {
+                    fullTranscript += res[0].transcript;
                 }
+                for (let j = 0; j < res.length; j++) {
+                    if (res[j] && res[j].transcript) {
+                        currentAlts.push(res[j].transcript);
+                    }
+                }
+                if (res.isFinal) hasFinal = true;
+            }
+
+            if (fullTranscript) {
+                lastHeard = fullTranscript;
+                collectedCandidates.push(fullTranscript, ...currentAlts);
+                showLive(lastHeard);
+            }
+
+            if (hasFinal) {
+                finish([fullTranscript, ...currentAlts]);
+            } else if (lastHeard) {
+                // 若使用者停止說話滿 1.3 秒仍未收到 isFinal，自動以目前已辨識到的字句結算評分
+                clearTimeout(speechSilenceTimer);
+                speechSilenceTimer = setTimeout(() => {
+                    if (!isStale() && !handledResult && lastHeard) {
+                        finish([lastHeard]);
+                    }
+                }, 1300);
             }
         };
-        // 講完就主動結束,避免部分手機一直等到逾時才給結果
+
         recognition.onspeechend = () => {
-            if (!isStale()) { try { recognition.stop(); } catch (e) {} }
+            if (isStale() || handledResult) return;
+            // 語音結束後給瀏覽器 400ms 送出最後的 final result，若沒送但已有文字則直接評分
+            clearTimeout(speechSilenceTimer);
+            speechSilenceTimer = setTimeout(() => {
+                if (!isStale() && !handledResult) {
+                    if (lastHeard) {
+                        finish([lastHeard]);
+                    } else {
+                        try { recognition.stop(); } catch (e) {}
+                    }
+                }
+            }, 400);
         };
 
         recognition.onerror = event => {
-            if (isStale()) return;
+            if (isStale() || handledResult) return;
             const code = event && event.error;
             console.warn('SpeechRecognition error:', code);
             const fatal = ['not-allowed', 'service-not-allowed', 'audio-capture', 'language-not-supported'].includes(code);
-            if (lastHeard && !fatal && code !== 'aborted') { finish([lastHeard]); return; }
+            if (lastHeard && !fatal && code !== 'aborted') {
+                finish([lastHeard]);
+                return;
+            }
             stopActiveSpeechRecognition();
             if (code === 'aborted') return;
             showSpeechProblem(context, speechMsg(speechErrorKey(code)));
         };
 
-        const startedAt = Date.now();
         recognition.onend = () => {
-            if (speechSessionInFlight === recognition) speechSessionInFlight = null;
             if (isStale() || handledResult) return;
-            if (lastHeard) { finish([lastHeard]); return; }
-            stopActiveSpeechRecognition();
-            // 一啟動就結束、完全沒聽到聲音:多半是麥克風還沒釋放,自動重試一次
-            if (!isRetry && !IS_IOS && Date.now() - startedAt < 1000) {
-                const token = speechStartToken;
-                setTimeout(() => { if (token === speechStartToken) triggerSpeechAssessment(context, true, true); }, 400);
+            if (lastHeard) {
+                finish([lastHeard]);
                 return;
             }
+            stopActiveSpeechRecognition();
             showSpeechProblem(context, t.speakNoMatch);
         };
 
         try {
             recognition.start();
-            // 安全網:辨識卡住時不會有任何事件,10 秒後主動收尾並提示,不會一直停在「正在聽」
             speechMaxTimer = setTimeout(() => {
                 if (isStale() || handledResult) return;
-                if (lastHeard) { finish([lastHeard]); return; }
+                if (lastHeard) {
+                    finish([lastHeard]);
+                    return;
+                }
                 stopActiveSpeechRecognition();
                 showSpeechProblem(context, speechMsg('stuck'));
-            }, 10000);
+            }, 9000);
         } catch (err) {
             console.warn('SpeechRecognition start failed:', err);
             stopActiveSpeechRecognition();
             showSpeechProblem(context, speechMsg('generic'));
         }
     }
-
-    let chineseSpeechRequestId = 0;
     let lastChineseSpeechText = '';
     let chineseSpeechTimer = null;
     let chineseSpeechNoticeTimer = null;
